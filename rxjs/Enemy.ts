@@ -30,8 +30,8 @@ export default class Enemy extends GameObject {
         return futurePosition;
     }
 
-    constructor(parent: GameObject | null = null, htmlParent: HTMLElement = document.body){
-        super(parent,htmlParent);
+    constructor(){
+        super();
         this.name = 'enemy';
         this.Tick.pipe(
             throttleTime(1000)
@@ -71,7 +71,15 @@ export default class Enemy extends GameObject {
         Enemy.enemies.push(this);
 
     }
+    override Destroy(){
 
-    
+        const index = Enemy.enemies.indexOf(this);
+        if (index > -1) { // only splice array when item is found
+            Enemy.enemies.splice(index, 1); // 2nd parameter means remove one item only
+        }
+        return super.Destroy();
+
+    }
+
 
 }

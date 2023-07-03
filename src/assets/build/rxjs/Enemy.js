@@ -22,8 +22,8 @@ class Enemy extends GameObject {
         };
         return futurePosition;
     }
-    constructor(parent = null, htmlParent = document.body) {
-        super(parent, htmlParent);
+    constructor() {
+        super();
         this.name = 'enemy';
         this.Tick.pipe(throttleTime(1000)).subscribe(() => {
             let dist = VecDist(this.position, Game.player.position) * 0.03;
@@ -58,6 +58,13 @@ class Enemy extends GameObject {
             //});
         });
         Enemy.enemies.push(this);
+    }
+    Destroy() {
+        const index = Enemy.enemies.indexOf(this);
+        if (index > -1) { // only splice array when item is found
+            Enemy.enemies.splice(index, 1); // 2nd parameter means remove one item only
+        }
+        return super.Destroy();
     }
 }
 export default Enemy;

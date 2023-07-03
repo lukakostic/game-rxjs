@@ -1,8 +1,6 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
-import { MatDialogModule } from '@angular/material/dialog';
-
 import { AppComponent } from './app.component';
 import { PowerupComponent } from './powerup/powerup.component';
 import { PowerupItemComponent } from './powerup-item/powerup-item.component';
@@ -20,8 +18,7 @@ import { ScoreComponent } from './score/score.component';
     ScoreComponent
   ],
   imports: [
-    BrowserModule,
-    MatDialogModule
+    BrowserModule
   ],
   providers: [],
   bootstrap: [AppComponent]

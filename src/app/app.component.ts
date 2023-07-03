@@ -21,23 +21,7 @@ export class AppComponent {
     this.cdRef.detectChanges();
   }
 
-  openDialog() {
-    const dialogRef = this.dialog.open(ScoreComponent, {
-      
-    width: '100vw',
-    height: '100vh',
-    hasBackdrop: true,
-    backdropClass: 'backdrop',
-    panelClass: 'custom-dialog-container',
-    data:this.game
-  });
-
-    dialogRef.afterClosed().subscribe(result => {
-      console.log(`Dialog result: ${result}`);
-    });
-  }
-
-  constructor(private cdRef:ChangeDetectorRef,public dialog: MatDialog) {
+  constructor(private cdRef:ChangeDetectorRef) {
     this.cdRef = cdRef;
     window.appComponent = this;
   }

@@ -1,7 +1,7 @@
 import { map, scan } from 'rxjs/operators';
 import GameObject from './GameObject';
 class Bullet extends GameObject {
-    static { this.bulletPool = Array(200).fill(undefined).map(() => new Bullet()); }
+    static { this.bulletPool = []; }
     constructor(vecPos, vecDir, type) {
         super();
         this.name = 'bullet';

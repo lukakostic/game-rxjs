@@ -7,7 +7,7 @@ import { Vector, VecDir, VecSub, VecAdd, VecMul, VecNormalize, VecDist } from '.
 
 
 export default class Bullet extends GameObject {
-    static bulletPool = Array(200).fill(undefined).map(()=>new Bullet()) as Bullet[];
+    static bulletPool = [] as Bullet[];
     vecDir: Vector;
     type:number;
     speed:number;

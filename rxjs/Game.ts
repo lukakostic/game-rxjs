@@ -43,6 +43,7 @@ export default class Game {
     constructor(){
         console.log("CONSTRUCTING");
         Game.canvas = document.getElementById('canvas') as HTMLCanvasElement;
+        console.log(Game.canvas);
 
         Game.Input = new InputManager();
 
@@ -92,4 +93,11 @@ export default class Game {
         }
         return Game.collisionPairs;
       }
+      
+    static generateRandomPoint(padding: number): Vector {
+      return {
+        x: (-1300/2) + padding + Math.random() * ((1300) - 2 * padding),
+        y: (-900/2) + padding + Math.random() * ((900) - 2 * padding)
+      };
+    }
 }

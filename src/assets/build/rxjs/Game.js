@@ -28,6 +28,7 @@ class Game {
     constructor() {
         console.log("CONSTRUCTING");
         Game.canvas = document.getElementById('canvas');
+        console.log(Game.canvas);
         Game.Input = new InputManager();
         Game.ticks$ = interval(0, asyncScheduler).pipe(timestamp(), pairwise(), map(([previous, current]) => (Game.deltaTime = (current.timestamp - previous.timestamp) * Game.timeScale)), 
         //da imamo deltaTime izmedju emissija
@@ -67,6 +68,12 @@ class Game {
             }
         }
         return Game.collisionPairs;
+    }
+    static generateRandomPoint(padding) {
+        return {
+            x: (-1300 / 2) + padding + Math.random() * ((1300) - 2 * padding),
+            y: (-900 / 2) + padding + Math.random() * ((900) - 2 * padding)
+        };
     }
 }
 export default Game;

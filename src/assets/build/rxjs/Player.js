@@ -7,6 +7,7 @@ export default class Player extends GameObject {
         this.hp = 100;
         this.speed = 0.8;
         this.powerups = [];
+        this.powerupsWorld = [];
         this.playerLastPosition = { x: 0, y: 0 };
         this.name = 'player';
         this.color = 'green';

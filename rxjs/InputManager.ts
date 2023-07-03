@@ -1,6 +1,6 @@
 import { merge, fromEvent, Observable, Subject } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
-import { VecAdd } from './Vector';
+import { VecAdd, VecMul } from './Vector';
 import Game from './Game';
 
 interface MouseEvent {
@@ -90,7 +90,7 @@ export default class InputManager {
     }
 
     getMouseWorld() {
-        return VecAdd(this.mouse, Game.cameraOffset);
+        return VecAdd(this.mouse, VecMul(Game.viewportCenter,-1));
     }
 
     getMouseKey(key: number) {

@@ -1,6 +1,6 @@
 import { merge, fromEvent } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
-import { VecAdd } from './Vector';
+import { VecAdd, VecMul } from './Vector';
 import Game from './Game';
 export default class InputManager {
     constructor() {
@@ -46,7 +46,7 @@ export default class InputManager {
         return this.KeyUpdate$.pipe(filter(e => e.key == key && (state === null ? true : e.state == state))).subscribe(fn);
     }
     getMouseWorld() {
-        return VecAdd(this.mouse, Game.cameraOffset);
+        return VecAdd(this.mouse, VecMul(Game.viewportCenter, -1));
     }
     getMouseKey(key) {
         return this._mouse_keys[key] ?? 0;
