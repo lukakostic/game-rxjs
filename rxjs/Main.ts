@@ -4,13 +4,15 @@ const { filter, map, withLatestFrom,tap,  timestamp, pairwise,scan, startWith, s
 */
 import { fromEvent, interval, asyncScheduler } from 'rxjs';
 import { filter, map, withLatestFrom,tap,  timestamp, take, throttleTime, pairwise,scan, startWith, switchMap } from 'rxjs/operators';
-import Game from './Game.js';
-import GameObject from './GameObject.js';
-import { VecDir, VecSub, VecAdd, VecMul, VecNormalize, VecDist } from './Vector.js';
+import Game from './Game';
+import GameObject from './GameObject';
+import { Vector, VecDir, VecSub, VecAdd, VecMul, VecNormalize, VecDist } from './Vector';
 
-console.log("WORKS");
+console.log("WORKS!");
+
 new Game();
-window.Game = Game
+window['Game'] = Game
+declare let canvas : HTMLElement
 
 let sceneSize = [1000,900];
 Game.sceneExtents.x = -sceneSize[0]/2;
@@ -19,28 +21,31 @@ Game.cameraOffset.x = -sceneSize[0]/2;
 Game.cameraOffset.y = -sceneSize[1]/2;
 Game.sceneExtents.xSize = sceneSize[0];
 Game.sceneExtents.ySize = sceneSize[1];
-window.scene = new GameObject(null,canvas);
-Object.assign(window.scene,{position:{x:0,y:0},collider:false,size:{x:Game.sceneExtents.xSize,y:Game.sceneExtents.ySize},centered:true,color:'black'});
+window['scene'] = new GameObject(null,canvas);
+Object.assign(window['scene'],{position:{x:0,y:0},collider:false,size:{x:Game.sceneExtents.xSize,y:Game.sceneExtents.ySize},centered:true,color:'black'});
 
-let enemies = [];
-window.appComponent.enemies = enemies;
+let enemies = [] as GameObject[];
+window['appComponent'].enemies = enemies;
 
-window.player = new GameObject(null,canvas);
+window['player'] = new GameObject(null,canvas) as any;
+declare let player : GameObject & any;
 player.name = 'player';
 player.hp = 100;
 
 player.powerups = ['Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2']; //active on player
 player.powerupsWorld = [];
 const speed = 0.8;
-window.playerLastPosition = { x: 0, y: 0 };
-window.appComponent.player = player;
+let playerLastPosition = (window['playerLastPosition'] = { x: 0, y: 0 });
+console.log("APP COMPONONTNT");
+console.log("APP COMPONONTNT",window['appComponent']);
+window['appComponent'].player = player;
 
 player.Tick.pipe(
-    map((deltaTime) => ({
+    map((deltaTime:number) => ({
         y: Game.Input.getKey('w') ? -speed*deltaTime : Game.Input.getKey('s') ? speed*deltaTime : 0,
         x: Game.Input.getKey('a') ? -speed*deltaTime : Game.Input.getKey('d') ? speed*deltaTime : 0,
     })),
-    scan((position, movement) => ({
+    scan((position, movement :Vector) => ({
         y: position.y + movement.y,
         x: position.x + movement.x,
     }), { y: 0, x: 0 })
@@ -59,11 +64,11 @@ Game.Input.subKey(' ',1,()=>{
     Game.timeScale = ((Game.timeScale > 0.99)?0.4:1.0);
 });
 
-Game.ticks$.subscribe(()=>{
-    let cols = Game.CheckCollisions(bulletPool,[player,...enemies]);
+Game.ticks$.subscribe(function(){
+    let cols = Game.CheckCollisions(bulletPool,[player,...enemies]) as any[][];
     
     for(var i = 0; i < cols.length; i++)
-    if(cols[i][1]==window.player){
+    if(cols[i][1]==player){
         if(cols[i][0].type===1){
             cols[i][0].Disable();
             player.hp-=25;
@@ -78,7 +83,7 @@ Game.ticks$.subscribe(()=>{
 });
 
 
-function makeBullet(){
+function makeBullet() :GameObject|any{
     let b = new GameObject(null,canvas);
     b.name = 'bullet';
     b.size = {x:10,y:10};
@@ -87,7 +92,7 @@ function makeBullet(){
     b.enabled = false;  // All bullets are disabled initially
     return b;
 }
-let bulletPool = Array(200).fill().map(makeBullet);
+let bulletPool = Array(200).fill(undefined).map(makeBullet);
 function bullet(vecPos,vecDir,type){
     // Find the first disabled bullet
     let b = bulletPool.find(bullet => !bullet.enabled);
@@ -102,11 +107,11 @@ function bullet(vecPos,vecDir,type){
     b.homingRate = 0.2;
 
     b.Tick.pipe(
-        map((deltaTime) => ({
+        map((deltaTime:number) => ({
             x: b.vecDir.x*b.speed*deltaTime,
             y: b.vecDir.y*b.speed*deltaTime,
         })),
-        scan((position, movement) => ({
+        scan((position, movement:Vector) => ({
             y: position.y + movement.y,
             x: position.x + movement.x,
         }), b.position)

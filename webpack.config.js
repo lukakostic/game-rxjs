@@ -2,9 +2,9 @@ const path = require('path');
 
 
 module.exports = {
-  entry: './rxjs/Main.js',  // Update this to the path to your actual entry file
+  entry: './src/assets/build/rxjs/Main.js',  // Update this to the path to your actual entry file
   output: {
-    path: path.resolve(__dirname, 'assets', 'build'),
+    path: path.resolve('./src/assets/build'),
     filename: 'min.js',
   },
   

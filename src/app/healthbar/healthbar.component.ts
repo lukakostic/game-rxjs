@@ -12,11 +12,17 @@ export class HealthbarComponent implements OnInit {
   constructor() { }
 
   ngOnInit(): void {
+    console.log("PLAYAA",player);
   }
 
   getGradient(): string {
     let hp = this.player.hp;
+    hp*=0.9;
     let rest = 100 - hp;
-    return `linear-gradient(45deg, green ${hp}%, red ${rest}%)`;
+    return `linear-gradient(125deg, green ${hp}%, transparent ${rest}%)`;
+  }
+
+  getStyle(): string{
+    return `background: ${this.getGradient()}`;
   }
 }

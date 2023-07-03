@@ -1,1 +1,1 @@
-clear && npx webpack
+clear && tsc -p tsconfig.rxjs.json && npx webpack

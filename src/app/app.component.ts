@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { ChangeDetectorRef } from '@angular/core';
 
 declare global {
   interface Window { appComponent: any; }
@@ -10,10 +11,7 @@ declare global {
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
-  player:any={
-    powerups : ['Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2'],
-    hp: 100,
-  };
+  player:any=null;
   enemies=[
     {
       name:"enemy",
@@ -21,7 +19,11 @@ export class AppComponent {
       hp:75,
     }
   ];
-  constructor() {
+  rerender(){
+    this.cdRef.detectChanges();
+  }
+  constructor(private cdRef:ChangeDetectorRef) {
+    this.cdRef = cdRef;
     window.appComponent = this;
   }
 }

@@ -6,5 +6,5 @@ import { Component, Input } from '@angular/core';
   styleUrls: ['./powerup.component.scss']
 })
 export class PowerupComponent {
-  @Input() powerups: string[] = [];
+  @Input() powerups: any[] = [];
 }

@@ -1,6 +1,7 @@
 import { fromEvent, interval, asyncScheduler, Timestamp, Observable } from 'rxjs';
 import { filter, map, tap,  timestamp, pairwise } from 'rxjs/operators';
 import InputManager from './InputManager';
+import {Vector} from './Vector';
 
 interface GameObject {
   enabled: boolean;
@@ -9,6 +10,18 @@ interface GameObject {
   size: { x: number, y: number };
   centered: boolean;
 }
+
+export function getViewportSize(): Vector {
+  return { x: window.innerWidth, y: window.innerHeight };
+}
+
+export function getViewportCenter(): Vector {
+  let size = getViewportSize();
+  size.x /= 2;
+  size.y /= 2 ;
+  return size;
+}
+
 
 export default class Game {
     static canvas: HTMLCanvasElement | null = null;
@@ -22,6 +35,7 @@ export default class Game {
     static deltaTime = 0;
     static timeScale = 1.0;
     static collisionPairs: GameObject[][] = []; //cached last CollisionCheck
+    static viewportCenter = getViewportCenter();
 
     constructor(){
         console.log("CONSTRUCTING");
@@ -38,6 +52,11 @@ export default class Game {
 
             filter(() => !Game.paused),
         );
+
+        window.addEventListener('resize', () => {
+          console.log('resize ',getViewportCenter());
+          Game.viewportCenter = getViewportCenter();
+      });
     }
 
     static CheckCollisions(from: GameObject[] = Game.gameObjects, against: GameObject[] | null = null) {
