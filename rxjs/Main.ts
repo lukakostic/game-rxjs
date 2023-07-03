@@ -14,7 +14,7 @@ new Game();
 window['Game'] = Game
 declare let canvas : HTMLElement
 
-let sceneSize = [1000,900];
+let sceneSize = [1300,900];
 Game.sceneExtents.x = -sceneSize[0]/2;
 Game.sceneExtents.y = -sceneSize[1]/2;
 Game.cameraOffset.x = -sceneSize[0]/2;
@@ -31,6 +31,7 @@ window['player'] = new GameObject(null,canvas) as any;
 declare let player : GameObject & any;
 player.name = 'player';
 player.hp = 100;
+player.color = 'green';
 
 player.powerups = ['Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2','Powerup1', 'Powerup2']; //active on player
 player.powerupsWorld = [];
@@ -72,6 +73,7 @@ Game.ticks$.subscribe(function(){
         if(cols[i][0].type===1){
             cols[i][0].Disable();
             player.hp-=25;
+            window['appComponent'].rerender()
             console.log('player dmg ',player.hp);
         }
     }else{

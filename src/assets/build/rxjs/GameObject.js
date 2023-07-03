@@ -82,8 +82,8 @@ export default class GameObject {
             this.el.style.cssText = '';
             return;
         }
-        let x = this.position.x - /*Game.cameraOffset.x*/ -Game.cameraPos.x + Game.viewportCenter.x;
-        let y = this.position.y - /*Game.cameraOffset.y*/ -Game.cameraPos.y + Game.viewportCenter.y;
+        let x = this.position.x /*-Game.cameraOffset.x*/ - Game.cameraPos.x + Game.viewportCenter.x;
+        let y = this.position.y /*-Game.cameraOffset.y*/ - Game.cameraPos.y + Game.viewportCenter.y;
         if (this.centered) {
             x -= this.size.x / 2;
             y -= this.size.y / 2;
