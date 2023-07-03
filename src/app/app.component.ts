@@ -1,5 +1,7 @@
 import { Component } from '@angular/core';
 import { ChangeDetectorRef } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
+import { ScoreComponent } from './score/score.component'; 
 
 declare global {
   interface Window { appComponent: any; }
@@ -12,17 +14,30 @@ declare global {
 })
 export class AppComponent {
   player:any=null;
-  enemies=[
-    {
-      name:"enemy",
-      position:{x:0,y:0},
-      hp:75,
-    }
-  ];
+  game:any=null;
+  enemies:any=null;
+
   rerender(){
     this.cdRef.detectChanges();
   }
-  constructor(private cdRef:ChangeDetectorRef) {
+
+  openDialog() {
+    const dialogRef = this.dialog.open(ScoreComponent, {
+      
+    width: '100vw',
+    height: '100vh',
+    hasBackdrop: true,
+    backdropClass: 'backdrop',
+    panelClass: 'custom-dialog-container',
+    data:this.game
+  });
+
+    dialogRef.afterClosed().subscribe(result => {
+      console.log(`Dialog result: ${result}`);
+    });
+  }
+
+  constructor(private cdRef:ChangeDetectorRef,public dialog: MatDialog) {
     this.cdRef = cdRef;
     window.appComponent = this;
   }

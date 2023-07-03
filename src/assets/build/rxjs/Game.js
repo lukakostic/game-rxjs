@@ -11,6 +11,7 @@ export function getViewportCenter() {
     return size;
 }
 class Game {
+    static { this.player = null; }
     static { this.canvas = null; }
     static { this.Input = null; }
     static { this.ticks$ = null; }
@@ -23,6 +24,7 @@ class Game {
     static { this.timeScale = 1.0; }
     static { this.collisionPairs = []; } //cached last CollisionCheck
     static { this.viewportCenter = getViewportCenter(); }
+    static { this.score = 0; }
     constructor() {
         console.log("CONSTRUCTING");
         Game.canvas = document.getElementById('canvas');

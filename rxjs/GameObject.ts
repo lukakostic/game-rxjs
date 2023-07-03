@@ -22,7 +22,7 @@ export default class GameObject{
     CollidedSceneEdge: Subject<void>;
     _tickSub: Subscription;
 
-    constructor(parent: GameObject | null = null, htmlParent: HTMLElement = document.body){
+    constructor(parent: GameObject | null = null, htmlParent?: HTMLElement){
         this.enabled = true;
 
         this.name = "";
@@ -35,7 +35,7 @@ export default class GameObject{
         this.rotation = 0;
         this.color = 'red';
         this.el = document.createElement('div');
-        this.htmlParent = htmlParent;
+        this.htmlParent = htmlParent ?? Game.canvas;
         this.htmlParent.append(this.el);
 
         this.Tick = new Subject<number>();

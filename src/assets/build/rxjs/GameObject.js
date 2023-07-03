@@ -3,7 +3,7 @@ import { tap } from 'rxjs/operators';
 import Game from './Game';
 import { Vector } from './Vector';
 export default class GameObject {
-    constructor(parent = null, htmlParent = document.body) {
+    constructor(parent = null, htmlParent) {
         this.enabled = true;
         this.name = "";
         this.collider = true;
@@ -15,7 +15,7 @@ export default class GameObject {
         this.rotation = 0;
         this.color = 'red';
         this.el = document.createElement('div');
-        this.htmlParent = htmlParent;
+        this.htmlParent = htmlParent ?? Game.canvas;
         this.htmlParent.append(this.el);
         this.Tick = new Subject();
         this.PreRender = new Subject();

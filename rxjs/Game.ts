@@ -2,6 +2,7 @@ import { fromEvent, interval, asyncScheduler, Timestamp, Observable } from 'rxjs
 import { filter, map, tap,  timestamp, pairwise } from 'rxjs/operators';
 import InputManager from './InputManager';
 import {Vector} from './Vector';
+import Player from './Player';
 
 interface GameObject {
   enabled: boolean;
@@ -24,7 +25,8 @@ export function getViewportCenter(): Vector {
 
 
 export default class Game {
-    static canvas: HTMLCanvasElement | null = null;
+    static player : Player|null = null;
+    static canvas: HTMLElement | null = null;
     static Input: InputManager | null = null;
     static ticks$: Observable<number> | null = null;
     static cameraOffset = {x:-250,y:-250};
@@ -36,6 +38,7 @@ export default class Game {
     static timeScale = 1.0;
     static collisionPairs: GameObject[][] = []; //cached last CollisionCheck
     static viewportCenter = getViewportCenter();
+    static score = 0;
 
     constructor(){
         console.log("CONSTRUCTING");
