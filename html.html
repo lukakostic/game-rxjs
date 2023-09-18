@@ -1,0 +1,38 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Rwa</title>
+  <base href=".">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="stylesheet" href="css.css">
+</head>
+
+<body style="overflow: hidden;">
+<div style="position: fixed; height: 100%;">
+  <h1 id="game-score"></h1>
+
+  <div id="healthbarBack">
+    <div id="healthbarRed"></div>    
+    <div id="healthbar"></div>    
+  </div>
+
+  <div id="powerups"></div>
+
+  <img id="randImg" style="position: absolute; height: 200px; right: 10px; bottom: 20px; opacity:0.4;"></img>
+
+  <h1 id="botLeftText" style="color:lawngreen; position: absolute; font-size: 50px; left: 10px; bottom: 30px;"></h1>
+  <h1 id="T_Text" style="color:orange; font-size: 60px; position: absolute; top: 80px; width: 100%; text-align: center;"></h1>
+</div>
+
+
+  <div id="canvas"></div>
+
+</body>
+
+<script src="rxjs/ui.js"></script>
+<script src="build/min.js"></script>
+
+</html>

@@ -1,0 +1,67 @@
+ 
+#canvas {
+  position: absolute;
+  z-index:-1;
+  height: 100vh;
+  width: 100vw;
+}
+
+#healthbar {
+  height: 100%; 
+  background: linear-gradient(125deg, green 90%, transparent 10%);
+  margin-top: -20px;
+  color: white;
+  font-weight: 600;
+}
+#healthbarRed {
+  
+  height: 20px;
+  background: linear-gradient(125deg, red 90%, transparent 10%);
+}
+#healthbarBack {
+  height: 20px; 
+  width: 300px;
+  margin-left: 15px;
+  background: linear-gradient(125deg, black 90%, transparent 10%);
+  padding: 5px;
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+
+#powerups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    max-width: 400px;
+    padding: 15px;
+    opacity: 0.7;
+    z-index: 10;
+    position: fixed;
+    top: 100px;
+    left: 0px;
+
+  }
+  
+#game-score{
+    align-items: center; justify-content: center; text-align: center;
+    height: 30px;
+    width: 100vw;
+    color: orange;
+    font-size: 60px;
+}
+
+.powerup {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 60px;
+    height: 60px;
+    border: 1px solid black;
+    box-sizing: border-box;
+    padding: 7px;
+    word-break: break-all;
+    background-color: white;
+  }
+  

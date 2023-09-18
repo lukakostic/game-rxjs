@@ -2,7 +2,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "./src/assets/build/rxjs",
+    "outDir": "./build/ts",
     "types": [],
     "allowJs": true
   },
