@@ -2,7 +2,7 @@
 const { fromEvent, interval } = rxjs;
 const { filter, map, withLatestFrom,tap,  timestamp, pairwise,scan, startWith, switchMap } = rxjs.operators;
 */
-import { fromEvent, interval, asyncScheduler, timer } from 'rxjs';
+import { fromEvent, interval, asyncScheduler, timer, Subject } from 'rxjs';
 import { filter, map, withLatestFrom,tap,  timestamp, take, throttleTime, concatMap, pairwise,scan, startWith, switchMap, skip } from 'rxjs/operators';
 import { Game } from './_Game';
 import GameObject from './GameObject';
@@ -10,13 +10,13 @@ import { Vector, VecDir, VecSub, VecAdd, VecMul, VecNormalize, VecDist } from '.
 import Bullet from './Bullet';
 import Player from './_Player';
 import Enemy from './_Enemy';
-import Powerup from './Powerup';
+import {Powerup} from './Powerup';
 
-import { makeGameEvents,sub } from './__GameLogic';
+import { makeGameEvents,sub,playerHurt$,enemyHurt$/*,playerHurt2$,enemyHurt2$*/, playerCollect$ } from './__GameLogic';
 import { gradual,throttleWrap } from './__Helpers';
 import { randImg } from './randImg';
-import { weapons } from './Levels';
-import { levels } from './Levels';
+import { weapons,levels, powerups } from './GameData';
+
 
 declare let canvas : HTMLElement;
 
@@ -25,11 +25,12 @@ let enextSpawn = 7000;
 let enextS = 3000 + enextSpawn * (0.5+Math.random()/2);     
 let ptime = 0;
 let pcount = 0;
-let pnextSpawn = 7000;
+let pnextSpawn = 3000;
 let pnextS = 3000 + pnextSpawn * (0.5+Math.random()/2);     
 
 new Game();
 window['Game'] = Game;
+window['Enemy'] = Enemy;
 
 
 let sceneSize = [1000,700];
@@ -46,8 +47,8 @@ randImg();
 
 let player = Game.player = window['player'] = new Player();
 
-Game.Input.subKey('e',1,()=>{
-    Game.reset();
+Game.Input.subKey('[',1,()=>{
+    pnextS = 0;
 });
 
 
@@ -57,19 +58,43 @@ mouseCursor.size = {x:40,y:40};
 mouseCursor.collider = false;
 mouseCursor.boundByScene = false;
 mouseCursor.color = 'transparent';
-mouseCursor.customStyle = "border: 3px solid pink; border-radius: 50%; opacity: 0.3; z-index:50;";
+mouseCursor.customStyle = "border: 5px solid hotpink; border-radius: 50%; opacity: 0.4; z-index:50;";
 mouseCursor.Tick.subscribe(()=>{
     mouseCursor.position = Game.Input.mouseW;
 });
 
 
+function switchLevel(i){
+  if(!levels[i])return;
+  Game.curLevel = i;
+  levels[Game.curLevel].initialWeapon = Game.curWeapon;
+  Game.reset();
+  pcount=0;
+  (window as any).uiMgr.T_Text.innerHTML = "Level "+i;
+  
+  gradual((i)=>{
+    (window as any).uiMgr.T_Text.style.opacity = (1.0-(i*i)).toString();
+  },null,6000,30,true);
+
+  levels[i].load();
+  (window as any).uiMgr.maxEnemies = levels[Game.curLevel].enemies.length;
+
+}
+
 
 Game.sub('fireWeapon',(fireEv)=>{
   if(player.hp<=0)return;
+
+  let dmgMul = 1;
+  player.powerups.forEach(p=>{
+    if(p.name=="Damage") dmgMul*=1.2;
+  });
+  
   let weapon = fireEv.weapon;
   let b = Bullet.shoot(
     player.position,VecDir(player.position,Game.Input.mouseW),
-    0,0.9
+    0,0.9,
+    weapons[weapon].inaccuracy
     );
   b.color = weapons[weapon].color;
   b.damage = weapons[weapon].damage;
@@ -79,114 +104,122 @@ Game.Input.subKey('g',1,()=>{
     Game.timeScale = ((Game.timeScale > 0.99)?0.4:1.0);
 });
 
-function switchLevel(i){
-  if(!levels[i])return;
-  Game.curLevel = i;
-  Game.reset();
-  (window as any).uiMgr.T_Text.innerHTML = "Level "+i;
-  gradual((i)=>{
-    (window as any).uiMgr.T_Text.style.opacity = (1.0-(i*i)).toString();
-  },null,6000,30,true);
-
-  levels[i].load();
-
-}
-
-//Game.sub('levelSwitch',(l)=>console.log(l));
-//Game.sub('restart',(l)=>console.log(l));
 
 Game.events.subscribe(e=>{
-  console.log(">>>>>>>>>",e);
-  //if(e.type=='weaponSwitch') curWeapon=e.value;
+
   if(e.type=='levelSwitch') switchLevel(e.value);
+
   if(e.type=='restart') switchLevel(Game.curLevel);
+
+  if(e.type=='dmgPopup'){
+    let {entity,value} = e;
+    if(e.value === null){
+      entity.innerHTML = "<span></span>";
+    }else{
+      value=-value.toFixed(2);
+      let v = (value<0?'':'+')+value.toString();
+      let c = (value<0?'orange':'lime');
+      entity.innerHTML = `<span style="
+      position:absolute;  text-shadow: 2px 2px black; 
+      font-size:20px;font-weight:600;color:${c};
+      width:100%;text-align:center;margin-top:-40px;">${v}</span>`;
+    }
+  }
+
 });
 
+playerCollect$.subscribe((idx)=>{
+  let p = powerups[idx];
+  p.fn();
+});
 
-Game.ticks$.subscribe(function(){
+playerHurt$.subscribe((obj)=>{
+  player.hp -= obj.value;
+  if(player.hp<=0){
+    (window as any).uiMgr.T_Text.innerHTML = "You are dead.";
+    (window as any).uiMgr.T_Text.style.opacity = "1";
+    player.hp = 0;
+  }
+  if(player.hp>100){
+    player.hp = 100;
+  }
+});
+
+enemyHurt$.subscribe(obj=>{
+  obj.enemy.hp -= obj.value;
+  if(obj.enemy.hp<=0){
+    obj.enemy.Destroy();
+    Game.score++;
+}
+});
+
+Game.ticks$.subscribe(function(deltaTime){
+
+    [...Game.player.powerups].forEach((v,i)=>{
+        v.value -= (deltaTime/1000);//*Game.timeScale;
+        if(v.value<0){
+          Game.player.powerups.splice(i, 1);
+        }
+    });
+
     let cols = Game.CheckCollisions(Bullet.bulletPool,[player,...Enemy.enemies]) as any[][];
     
     for(var i = 0; i < cols.length; i++){
       if(cols[i][1]==player){
           if(cols[i][0].type===1){
               cols[i][0].Disable();
-              player.hp-=cols[i][0].damage;
-              if(player.hp<=0){
-                  (window as any).uiMgr.T_Text.innerHTML = "You are dead.";
-                  (window as any).uiMgr.T_Text.style.opacity = "1";
-              }
+              //player.hp-=cols[i][0].damage;
+              playerHurt$.next({value:cols[i][0].damage});
           }
       }else{
           if(cols[i][0].type===0){
               cols[i][0].Disable();
-              cols[i][1].hp-=cols[i][0].damage;
-              console.log("enemy hurt");
-              if(cols[i][1].hp<=0){
-                  cols[i][1].Destroy();
-                  Game.score++;
-              }
-              
+              enemyHurt$.next({enemy:cols[i][1],value:cols[i][0].damage});
           }
       }
     }
 
     //cols = Game.CheckCollisions(player.powerupsWorld,[player]) as any[][];
-    for(var i = 0; i<player.powerupsWorld.length; i++){
+    for(var i = 0; i<Game.powerupsWorld.length; i++){
+        if(VecDist(player.position,Game.powerupsWorld[i].position)<40){
         
-        if(VecDist(player.position,player.powerupsWorld[i].position)<50){
-        //if(cols[i][0]==player||cols[i][1]==player){
-            //player.powerups.push("Powerup");
-            player.hp+=30;
+            playerCollect$.next(Game.powerupsWorld[i].idx);
             pcount--;
-            //window['appComponent'].rerender();
-            player.powerupsWorld[i].Destroy();
-        }
         
+            Game.powerupsWorld[i].Destroy();
+        }
     }
 });
-//Enemy.spawner();
-/*
 
-let esub = Game.ticks$.subscribe(function(deltaTime){
-    etime+=deltaTime;
-    console.log(etime);
-    if(etime>enextS){
-        etime = 0;
-        let e = new Enemy();
-        e.position = Game.generateRandomPoint(100);
-        enextSpawn*=0.99;
-        enextS = 3000 + enextSpawn * (0.5+Math.random()/2);
-        console.log("SPAWN P");
-    }
-
-});
-*/
-/*
-let psub = interval(10000).pipe(
-    startWith(0),
-    scan((acc) => acc * 0.99, 10),
-    map((nextSpawn) => {
-      console.log('Spawned');
-      return nextSpawn;
-    })
-  ).subscribe();
-  */
-  
 
 let psub = Game.ticks$.subscribe(function(deltaTime){
-  //return;
-    if(pcount>2) return;
+  
+    if(Game.curLevel!=4){
+      if(pcount>2) return;
+    } else if(pcount>4) return;
+
     ptime+=deltaTime;
     if(ptime>pnextS){
         ptime = 0;
         pcount++;
-        let e = new Powerup();
+    
+        let idx = Math.floor(Math.random()*powerups.length);
+        let e = Object.assign(new Powerup(powerups[idx].powName),
+          powerups[idx]
+        );
+        e.idx = idx;
+        e.innerHTML = e.symbol;
         e.position = Game.generateRandomPoint(100);
-        pnextSpawn*=0.99;
-        pnextS = 3000 + pnextSpawn * (0.5+Math.random()/2);
+    
+        //pnextSpawn*=0.99;
+        if(Game.curLevel!=4)
+          pnextS = 3000 + pnextSpawn * (0.5+Math.random()/2);
+        else{
+          pnextS = 3000;
+        }
     }
 
 });
 
 
-switchLevel(1);
+switchLevel(0);

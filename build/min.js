@@ -2286,6 +2286,66 @@ function take(count) {
         });
 }
 //# sourceMappingURL=take.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/concatAll.js
+
+function concatAll() {
+    return mergeAll(1);
+}
+//# sourceMappingURL=concatAll.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/observable/concat.js
+
+
+
+function concat() {
+    var args = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        args[_i] = arguments[_i];
+    }
+    return concatAll()(from(args, popScheduler(args)));
+}
+//# sourceMappingURL=concat.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/ignoreElements.js
+
+
+
+function ignoreElements() {
+    return operate(function (source, subscriber) {
+        source.subscribe(createOperatorSubscriber(subscriber, noop));
+    });
+}
+//# sourceMappingURL=ignoreElements.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/mapTo.js
+
+function mapTo(value) {
+    return map_map(function () { return value; });
+}
+//# sourceMappingURL=mapTo.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/delayWhen.js
+
+
+
+
+
+
+function delayWhen(delayDurationSelector, subscriptionDelay) {
+    if (subscriptionDelay) {
+        return function (source) {
+            return concat(subscriptionDelay.pipe(take(1), ignoreElements()), source.pipe(delayWhen(delayDurationSelector)));
+        };
+    }
+    return mergeMap(function (value, index) { return innerFrom(delayDurationSelector(value, index)).pipe(take(1), mapTo(value)); });
+}
+//# sourceMappingURL=delayWhen.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/delay.js
+
+
+
+function delay_delay(due, scheduler) {
+    if (scheduler === void 0) { scheduler = asyncScheduler; }
+    var duration = timer(due, scheduler);
+    return delayWhen(function () { return duration; });
+}
+//# sourceMappingURL=delay.js.map
 ;// CONCATENATED MODULE: ./build/ts/Vector.js
 function Vector(x, y) {
     return { x, y };
@@ -2329,6 +2389,7 @@ function VecMul(vec, scalar) {
 
 class GameObject {
     constructor(parent = null, htmlParent) {
+        this.innerHTML = null;
         this.enabled = true;
         this.name = "";
         this.collider = true;
@@ -2343,6 +2404,7 @@ class GameObject {
         this.htmlParent = htmlParent ?? Game.canvas;
         this.htmlParent.append(this.el);
         this.customStyle = null;
+        this.innerHTML = null;
         this.Tick = new Subject();
         this.PreRender = new Subject();
         this.Render = new Subject();
@@ -2424,6 +2486,9 @@ class GameObject {
         z-index:-1;
         ${this.customStyle ? this.customStyle : ""}
         `.split('\n').join('');
+        if (this.innerHTML) {
+            this.el.innerHTML = this.innerHTML;
+        }
     }
 }
 //# sourceMappingURL=GameObject.js.map
@@ -2464,8 +2529,9 @@ class Bullet extends GameObject {
     static { this.bulletPool = []; }
     constructor(vecPos, vecDir, type) {
         super();
+        this.tickFn = null;
         this.name = 'bullet';
-        this.size = { x: 10, y: 10 };
+        this.size = { x: 14, y: 14 };
         this.color = 'yellow';
         this.centered = true;
         this.enabled = false; // All bullets are disabled initially
@@ -2478,10 +2544,19 @@ class Bullet extends GameObject {
         //b.homing = false;
         this.homingRate = 0.2;
         this.damage = 99;
+        this.tickFn = null;
     }
-    static shoot(vecPos, vecDir, type, speed = 1.7) {
+    static shoot(vecPos, vecDir, type, speed = 1.7, inaccuracy = 0) {
         // Find the first disabled bullet
         let b = Bullet.bulletPool.find(bullet => !bullet.enabled);
+        //vecDir is a unit vecotr {x,y}, we need to rotate it by random angle * inaccuracy
+        if (inaccuracy > 0.01) {
+            let angle = ((Math.random() - 0.5) * Math.PI / 2) * inaccuracy;
+            vecDir = {
+                x: vecDir.x * Math.cos(angle) - vecDir.y * Math.sin(angle),
+                y: vecDir.x * Math.sin(angle) + vecDir.y * Math.cos(angle)
+            };
+        }
         if (!b) {
             b = new Bullet(vecPos, vecDir, type);
             Bullet.bulletPool.push(b);
@@ -2492,12 +2567,19 @@ class Bullet extends GameObject {
         b.position = { ...vecPos };
         b.type = type;
         b.speed = speed;
+        b.lifetimeClock = 0;
         //b.homing = false;
         b.homingRate = 0.2;
-        b.Tick.pipe(map_map((deltaTime) => ({
-            x: b.vecDir.x * b.speed * deltaTime,
-            y: b.vecDir.y * b.speed * deltaTime,
-        })), scan((position, movement) => ({
+        b.tickFn = null;
+        b.Tick.pipe(map_map((deltaTime) => {
+            let c = ({
+                x: b.vecDir.x * b.speed * deltaTime,
+                y: b.vecDir.y * b.speed * deltaTime,
+            });
+            if (b.tickFn)
+                c = b.tickFn(deltaTime, c, b);
+            return c;
+        }), scan((position, movement) => ({
             y: position.y + movement.y,
             x: position.x + movement.x,
         }), b.position)).subscribe((pos) => {
@@ -2511,7 +2593,6 @@ class Bullet extends GameObject {
         return b;
     }
 }
-/* harmony default export */ const ts_Bullet = (Bullet);
 //# sourceMappingURL=Bullet.js.map
 ;// CONCATENATED MODULE: ./build/ts/_Enemy.js
 
@@ -2538,76 +2619,84 @@ class Enemy extends GameObject {
         };
         return futurePosition;
     }
-    constructor() {
+    constructor(boss = false) {
         super();
         this.hp = 100;
+        this.boss = false;
         this.name = 'enemy';
         this.hp = 100;
-        this.Tick.pipe(throttleTime_throttleTime(1000) ////// ******
+        //this.customStyle = "border: 2px solid red";
+        this.boss = boss;
+        this.Tick.pipe(throttleTime_throttleTime(this.boss ? (600 + Math.random() * 400) : 1000) ////// ******
         ).subscribe(() => {
             let dist = VecDist(this.position, Game.player.position) * 0.03;
             let playerPos = Enemy.predictFuturePosition(dist);
-            //console.log(playerPos,player.position,dist);
-            let b = ts_Bullet.shoot(this.position, VecDir(this.position, playerPos), 1);
-            //b.speed = 1.1;
-            b.speed = 0.6;
-            b.color = 'red';
-            b.homingRate = 0.05;
-            b.damage = 15;
-            b.homing = b.Tick.pipe(throttleTime_throttleTime(300), take(2) ////// ******
-            ).subscribe(() => {
-                let dist = VecDist(b.position, Game.player.position) * b.homingRate;
-                let playerPos = Enemy.predictFuturePosition(dist);
-                b.vecDir = VecDir(b.position, playerPos);
-            });
-            /*
-                b.homingRate = 0.25;
-                b.homing = b.Tick.pipe(throttleTime(300) ).subscribe(()=>{
-                    let dist = VecDist(b.position,player.position) * b.homingRate;
-                    let playerPos = predictFuturePosition(dist);
+            if (!this.boss) {
+                let b = Bullet.shoot(this.position, VecDir(this.position, playerPos), 1);
+                //b.speed = 1.1;
+                b.speed = 0.6;
+                b.color = 'red';
+                b.damage = 15;
+                b.homingRate = 0.06;
+                b.homing = b.Tick.pipe(throttleTime_throttleTime(300), take(3) ////// ******
+                ).subscribe(() => {
+                    let dist = VecDist(b.position, Game.player.position) * b.homingRate;
+                    let playerPos = Enemy.predictFuturePosition(dist);
                     b.vecDir = VecDir(b.position, playerPos);
-                        //console.log(b.position,player.position,b.vecDir)
-                    b.speed *= 1.1;
-                    b.homingRate *= 0.8;
-                            
-                    /*
-                    let vecDirToPlayer = VecDir(b.position, playerPos);
-                    let weightedCurrentDirection = VecMul(b.vecDir, 1 - b.homingRate);
-                    let weightedDirectionToPlayer = VecMul(vecDirToPlayer, b.homingRate);
-                    b.vecDir = VecNormalize(VecAdd(weightedCurrentDirection, weightedDirectionToPlayer));
-                    */
-            //});
+                });
+            }
+            else {
+                let dir = VecDir(this.position, playerPos);
+                let b1 = Bullet.shoot(this.position, dir, 1, 0.9, 0.8);
+                let b2 = Bullet.shoot(this.position, dir, 1, 0.9, 0.8);
+                let applyB = function (b, offset) {
+                    //b.speed = 1.1;
+                    b.speed = 0.7;
+                    b.color = 'hotpink';
+                    b.damage = 10;
+                    b.lifetimeClock = 0;
+                    b.homingRate = 0.06;
+                    b.homing = b.Tick.pipe(delay_delay(400), throttleTime_throttleTime(300), take(3) ////// ******
+                    ).subscribe((dt) => {
+                        let dist = VecDist(b.position, Game.player.position) * b.homingRate;
+                        let playerPos = Enemy.predictFuturePosition(dist);
+                        b.vecDir = VecDir(b.position, playerPos);
+                    });
+                    // b.tickFn = (dt,c,bl)=>{
+                    //     //return c;
+                    //     let angle = Math.PI/2;
+                    //     //console.log(dir);
+                    //     let vec = {
+                    //         x: dir.x * Math.cos(angle) - dir.y * Math.sin(angle),
+                    //         y: dir.x * Math.sin(angle) + dir.y * Math.cos(angle)
+                    //     };
+                    //     //console.log(vec);
+                    //     //let dirP = {x:dir.y,y:dir.x};
+                    //     //console.log(dt);
+                    //     if(isNaN(bl.lifetimeClock)) bl.lifetimeClock = 0;
+                    //     //console.log(bl.lifetimeClock,dt,Game.timeScale);
+                    //     bl.lifetimeClock += (dt/2000) * Game.timeScale;
+                    //     let s = (offset*Math.sin(bl.lifetimeClock))*5;
+                    //     //console.log(bl.lifetimeClock,s);
+                    //     let v = VecMul(vec,s);
+                    //     return VecAdd(c,v);
+                    // };
+                };
+                applyB(b1, -1);
+                applyB(b2, 1);
+            }
         });
         Enemy.enemies.push(this);
     }
     Destroy() {
         const index = Enemy.enemies.indexOf(this);
-        if (index > -1) { // only splice array when item is found
-            Enemy.enemies.splice(index, 1); // 2nd parameter means remove one item only
+        if (index > -1) {
+            Enemy.enemies.splice(index, 1);
         }
         return super.Destroy();
     }
 }
-/* harmony default export */ const _Enemy = (Enemy);
 //# sourceMappingURL=_Enemy.js.map
-;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/concatAll.js
-
-function concatAll() {
-    return mergeAll(1);
-}
-//# sourceMappingURL=concatAll.js.map
-;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/observable/concat.js
-
-
-
-function concat() {
-    var args = [];
-    for (var _i = 0; _i < arguments.length; _i++) {
-        args[_i] = arguments[_i];
-    }
-    return concatAll()(from(args, popScheduler(args)));
-}
-//# sourceMappingURL=concat.js.map
 ;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/startWith.js
 
 
@@ -2648,48 +2737,139 @@ function switchMap(project, resultSelector) {
     });
 }
 //# sourceMappingURL=switchMap.js.map
-;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/ignoreElements.js
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/groupBy.js
 
 
 
-function ignoreElements() {
+
+
+function groupBy(keySelector, elementOrOptions, duration, connector) {
     return operate(function (source, subscriber) {
-        source.subscribe(createOperatorSubscriber(subscriber, noop));
+        var element;
+        if (!elementOrOptions || typeof elementOrOptions === 'function') {
+            element = elementOrOptions;
+        }
+        else {
+            (duration = elementOrOptions.duration, element = elementOrOptions.element, connector = elementOrOptions.connector);
+        }
+        var groups = new Map();
+        var notify = function (cb) {
+            groups.forEach(cb);
+            cb(subscriber);
+        };
+        var handleError = function (err) { return notify(function (consumer) { return consumer.error(err); }); };
+        var activeGroups = 0;
+        var teardownAttempted = false;
+        var groupBySourceSubscriber = new OperatorSubscriber(subscriber, function (value) {
+            try {
+                var key_1 = keySelector(value);
+                var group_1 = groups.get(key_1);
+                if (!group_1) {
+                    groups.set(key_1, (group_1 = connector ? connector() : new Subject()));
+                    var grouped = createGroupedObservable(key_1, group_1);
+                    subscriber.next(grouped);
+                    if (duration) {
+                        var durationSubscriber_1 = createOperatorSubscriber(group_1, function () {
+                            group_1.complete();
+                            durationSubscriber_1 === null || durationSubscriber_1 === void 0 ? void 0 : durationSubscriber_1.unsubscribe();
+                        }, undefined, undefined, function () { return groups.delete(key_1); });
+                        groupBySourceSubscriber.add(innerFrom(duration(grouped)).subscribe(durationSubscriber_1));
+                    }
+                }
+                group_1.next(element ? element(value) : value);
+            }
+            catch (err) {
+                handleError(err);
+            }
+        }, function () { return notify(function (consumer) { return consumer.complete(); }); }, handleError, function () { return groups.clear(); }, function () {
+            teardownAttempted = true;
+            return activeGroups === 0;
+        });
+        source.subscribe(groupBySourceSubscriber);
+        function createGroupedObservable(key, groupSubject) {
+            var result = new Observable_Observable(function (groupSubscriber) {
+                activeGroups++;
+                var innerSub = groupSubject.subscribe(groupSubscriber);
+                return function () {
+                    innerSub.unsubscribe();
+                    --activeGroups === 0 && teardownAttempted && groupBySourceSubscriber.unsubscribe();
+                };
+            });
+            result.key = key;
+            return result;
+        }
     });
 }
-//# sourceMappingURL=ignoreElements.js.map
-;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/mapTo.js
-
-function mapTo(value) {
-    return map_map(function () { return value; });
-}
-//# sourceMappingURL=mapTo.js.map
-;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/delayWhen.js
+//# sourceMappingURL=groupBy.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/debounceTime.js
 
 
 
-
-
-
-function delayWhen(delayDurationSelector, subscriptionDelay) {
-    if (subscriptionDelay) {
-        return function (source) {
-            return concat(subscriptionDelay.pipe(take(1), ignoreElements()), source.pipe(delayWhen(delayDurationSelector)));
-        };
-    }
-    return mergeMap(function (value, index) { return innerFrom(delayDurationSelector(value, index)).pipe(take(1), mapTo(value)); });
-}
-//# sourceMappingURL=delayWhen.js.map
-;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/delay.js
-
-
-
-function delay_delay(due, scheduler) {
+function debounceTime(dueTime, scheduler) {
     if (scheduler === void 0) { scheduler = asyncScheduler; }
-    var duration = timer(due, scheduler);
-    return delayWhen(function () { return duration; });
+    return operate(function (source, subscriber) {
+        var activeTask = null;
+        var lastValue = null;
+        var lastTime = null;
+        var emit = function () {
+            if (activeTask) {
+                activeTask.unsubscribe();
+                activeTask = null;
+                var value = lastValue;
+                lastValue = null;
+                subscriber.next(value);
+            }
+        };
+        function emitWhenIdle() {
+            var targetTime = lastTime + dueTime;
+            var now = scheduler.now();
+            if (now < targetTime) {
+                activeTask = this.schedule(undefined, targetTime - now);
+                subscriber.add(activeTask);
+                return;
+            }
+            emit();
+        }
+        source.subscribe(createOperatorSubscriber(subscriber, function (value) {
+            lastValue = value;
+            lastTime = scheduler.now();
+            if (!activeTask) {
+                activeTask = scheduler.schedule(emitWhenIdle, dueTime);
+                subscriber.add(activeTask);
+            }
+        }, function () {
+            emit();
+            subscriber.complete();
+        }, undefined, function () {
+            lastValue = activeTask = null;
+        }));
+    });
 }
-//# sourceMappingURL=delay.js.map
+//# sourceMappingURL=debounceTime.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/observable/of.js
+
+
+function of() {
+    var args = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        args[_i] = arguments[_i];
+    }
+    var scheduler = popScheduler(args);
+    return from(args, scheduler);
+}
+//# sourceMappingURL=of.js.map
+;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/endWith.js
+
+
+
+function endWith() {
+    var values = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        values[_i] = arguments[_i];
+    }
+    return function (source) { return concat(source, of.apply(void 0, __spreadArray([], __read(values)))); };
+}
+//# sourceMappingURL=endWith.js.map
 ;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/catchError.js
 
 
@@ -2718,45 +2898,95 @@ function catchError(selector) {
     });
 }
 //# sourceMappingURL=catchError.js.map
-;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/observable/of.js
+;// CONCATENATED MODULE: ./build/ts/GameData.js
 
-
-function of() {
-    var args = [];
-    for (var _i = 0; _i < arguments.length; _i++) {
-        args[_i] = arguments[_i];
-    }
-    var scheduler = popScheduler(args);
-    return from(args, scheduler);
-}
-//# sourceMappingURL=of.js.map
-;// CONCATENATED MODULE: ./build/ts/Levels.js
 
 
 let weapons = {
     1: {
-        cooldown: 160,
+        cooldown: 300,
         automatic: true,
-        damage: 10,
+        damage: 25,
+        inaccuracy: 0,
         color: 'cyan'
     },
     2: {
-        cooldown: 300,
+        cooldown: 130,
         automatic: false,
-        damage: 20,
+        damage: 15,
+        inaccuracy: 0,
         color: 'yellow'
+    },
+    3: {
+        cooldown: 120,
+        automatic: true,
+        damage: 9,
+        inaccuracy: 0.15,
+        color: 'magenta'
     }
 };
+let powerups = [
+    {
+        powName: "Shield",
+        symbol: "S",
+        description: "Blocks 20% of damage",
+        color: 'lightblue',
+        value: 7,
+        fn: function () {
+            Game.player.powerups.push({ name: this.powName, value: this.value, data: this });
+        }
+    },
+    {
+        powName: "Damage",
+        symbol: "D",
+        description: "Increase damage 20%",
+        color: 'gold',
+        value: 4,
+        fn: function () {
+            Game.player.powerups.push({ name: this.powName, value: this.value, data: this });
+        }
+    },
+    {
+        powName: "Heal",
+        symbol: "H",
+        description: "Heal 25hp",
+        color: 'lime',
+        value: -1,
+        fn: () => {
+            playerHurt$.next({ value: -30 });
+            //Game.player.hp+=30;
+            //if(Game.player.hp>100) Game.player.hp = 100;
+        }
+    },
+    {
+        powName: "Hurt",
+        symbol: "E",
+        description: "Hurt 15hp",
+        color: 'red',
+        value: -1,
+        fn: () => {
+            playerHurt$.next({ value: 20 });
+            //Game.player.hp-=20;
+            //if(Game.player.hp100) Game.player.hp = 100;
+        }
+    },
+];
 let levels = {
+    0: {
+        initialWeapon: 1,
+        load() {
+            this.enemies = [];
+        }
+    },
     1: {
         initialWeapon: 1,
         load() {
             this.enemies =
                 [
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: -400, y: 400 },
                     }),
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: 400, y: -400 },
                     })
                 ];
@@ -2767,16 +2997,16 @@ let levels = {
         load() {
             this.enemies =
                 [
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: -400, y: 400 },
                     }),
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: 400, y: -400 },
                     }),
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: 400, y: 400 },
                     }),
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: -400, y: -400 },
                     })
                 ];
@@ -2785,28 +3015,53 @@ let levels = {
     3: {
         initialWeapon: 1,
         load() {
+            // Object.assign(Game.player,{
+            //   position:{x:-600,y:0}
+            // })
             this.enemies =
                 [
-                    Object.assign(Game.player, {
-                        position: { x: -600, y: 0 }
-                    }),
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: 700, y: 400 },
                     }),
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: 700, y: 100 },
                     }),
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: 700, y: -100 },
                     }),
-                    Object.assign(new _Enemy(), {
+                    Object.assign(new Enemy(), {
                         position: { x: 700, y: -400 },
                     })
                 ];
         }
-    }
+    },
+    4: {
+        initialWeapon: 1,
+        load() {
+            // Object.assign(Game.player,{
+            //   position:{x:-400,y:-400}
+            // })
+            this.enemies =
+                [
+                    Object.assign(new Enemy(true), {
+                        position: { x: 500, y: 0 },
+                        size: { x: 80, y: 80 },
+                        color: 'hotpink',
+                        hp: 500,
+                        boss: true
+                    }),
+                    Object.assign(new Enemy(true), {
+                        position: { x: -500, y: 0 },
+                        size: { x: 80, y: 80 },
+                        color: 'hotpink',
+                        hp: 500,
+                        boss: true
+                    }),
+                ];
+        }
+    },
 };
-//# sourceMappingURL=Levels.js.map
+//# sourceMappingURL=GameData.js.map
 ;// CONCATENATED MODULE: ./build/ts/__GameLogic.js
 
 //import { catchError } from 'rxjs/operators';
@@ -2817,60 +3072,60 @@ const powerup = (type, value) => ({ type, value });
 const hurt = (value, type = 'dmg') => ({ type, value });
 const hurtT = { dmg: 'dmg', poison: 'poison' };
 let invincibilityP = powerup('invincible', 10.0);
-function makeGameEvents(document) {
-    const clicks$ = fromEvent(document, 'click').pipe(map_map((x) => ({ n: 'click', e: x })));
+let playerHurt$ = new Subject();
+let enemyHurt$ = new Subject();
+// export let playerHurt2$ = new Subject<{value:any}>();
+// export let enemyHurt2$ = new Subject<{enemy:any,value:any}>();
+let playerCollect$ = new Subject();
+let GEvent = {};
+function makeGameEvents() {
+    const clicks$ = fromEvent(document, 'mousedown').pipe(map_map((x) => ({ n: 'click', e: x })));
     const keys$ = fromEvent(document, 'keydown').pipe(map_map((x) => ({ n: 'key', e: x })));
     const keysOnce$ = fromEvent(document, 'keydown').pipe(filter(e => e.repeat), map_map((x) => ({ n: 'key1', e: x })));
     let gameEvents;
     gameEvents = merge_merge(
-    ///////////////////////// Weapon fire
+    ///////////////////////////////// Weapon fire
     ///////////////////////// Weapon Switch
     keys$.pipe(filter(e => !e.e.ctrlKey && /^\d$/.test(e.e.key)), map_map(e => parseInt(e.e.key)), //get weapon key
-    filter(e => weapons[e]), map_map(e => ({ type: 'weaponSwitch', value: e }))).pipe(map_map(x => x.value), startWith(levels[Game.curLevel].initialWeapon), //starting weapon
+    filter(e => weapons[e]), tap(e => Game.curWeapon = e), map_map(e => ({ type: 'weaponSwitch', value: e })))
+        .pipe(map_map(x => x.value), startWith(levels[Game.curLevel].initialWeapon), //starting weapon
     tap((x) => console.log("weapon switch:" + x)), switchMap((weapon) => //pucaj trenutno oruzije
      
     ///////////////////////// Shoot signal
     merge_merge(keys$, clicks$, interval(1)).pipe(filter((e) => {
-        if (typeof e == 'number' || e?.e?.key) {
-            if (weapons[weapon].automatic)
-                if (Game.Input?.getKey(' ') == 1)
-                    return true;
-            if (typeof e == 'number')
-                return false;
-            if (weapons[weapon].automatic) {
-                return e?.e?.key == ' ';
-            }
-            else if (typeof e != 'number') {
-                return e?.e?.key == ' ' && !e.e.repeated;
-            }
-        }
-        return e.e.button == 0;
-    }), throttleTime_throttleTime(weapons[weapon].cooldown * Game.timeScale), map_map(e => ({ type: 'shootSignal' })))
+        let down = Game.Input?.getKey(' ') || Game.Input?.getMouseKey(0);
+        let isFirstClick = (e?.e?.button == 0) || (e?.e?.key == ' ' && e.e.repeat === false);
+        return down && (isFirstClick || weapons[weapon].automatic);
+    }), throttleTime_throttleTime(weapons[weapon].cooldown / Game.timeScale), map_map(e => ({ type: 'shootSignal' })))
         // gameEvents.pipe( filter(e=>e.type=='shootSignal'),map(x=>x.value))
         .pipe(map_map(() => ({ type: 'fireWeapon', weapon }))))), 
     //switchMap((e) => interval(repeatTime).pipe(map(i=>2),scan((acc,j)=>acc+j),map(x=>e.n+x)))
+    ///////////////// Damage indicator
+    merge_merge(playerHurt$.pipe(map_map(obj => {
+        Game.player.powerups.forEach(p => {
+            if (p.name == "Shield")
+                obj.value *= 0.8;
+        });
+        return obj;
+    }), map_map((v) => ({ enemy: Game.player, ...v }))), enemyHurt$)
+        .pipe(groupBy((i) => i.enemy /*i.id*/, {
+        duration: (group) => group.pipe(debounceTime(1500)),
+    }), mergeMap((group) => group.pipe(scan((acc, curr) => {
+        return { enemy: curr.enemy, value: acc.value + curr.value };
+    }, { enemy: null, value: 0 }), endWith(({ enemy: group.key, value: null })))), map_map((obj) => ({ type: "dmgPopup", entity: obj.enemy, value: obj.value }))), 
     ///////////////////////// Level Switch
     keys$.pipe(filter(e => e.e.ctrlKey && /^\d$/.test(e.e.key)), map_map(e => parseInt(e.e.key)), filter(e => levels[e]), map_map(e => ({ type: 'levelSwitch', value: e }))), 
     ///////////////////////// Weapon Switch
     keys$.pipe(filter(e => !e.e.ctrlKey && /^\d$/.test(e.e.key)), map_map(e => parseInt(e.e.key)), filter(e => weapons[e]), delay_delay(10), map_map(e => ({ type: 'weaponSwitch', value: e }))), 
-    /*
-  merge(
-  )
-  .pipe(
-    startWith(null), pairwise(),
-    filter((x) => x[1].type == 'weaponSwitch'),
-    map((x) => x[x[0]?.type == 'levelSwitch' ? 0 : 1]),
-  ),*/
     ///////////////////////// Restart level
-    keys$.pipe(filter(e => e.e.key == ']'), map_map(e => ({ type: 'restart' })))).pipe(catchError(e => {
+    keys$.pipe(filter(e => e.e.key == 'r'), map_map(e => ({ type: 'restart' })))).pipe(catchError(e => {
         console.log('error ', e);
-        return merge_merge(of({ type: 'error', error: e }), makeGameEvents(document));
+        return merge_merge(of({ type: 'error', error: e }), makeGameEvents());
     }));
     return gameEvents;
 }
-function sub(ev, type, fn) {
-    console.log("sub", ev);
-    return ev.pipe(filter(e => e.type == type)).subscribe(x => fn(x));
+function sub(events, type, fn) {
+    return events.pipe(filter(e => e.type == type)).subscribe(x => fn(x));
 }
 //# sourceMappingURL=__GameLogic.js.map
 ;// CONCATENATED MODULE: ./build/ts/_Game.js
@@ -2899,6 +3154,7 @@ class Game {
     static { this.cameraPos = { x: 0, y: 0 }; }
     static { this.sceneExtents = { y: -250, x: -250, xSize: 500, ySize: 500 }; }
     static { this.gameObjects = []; }
+    static { this.powerupsWorld = []; }
     static { this.paused = false; }
     static { this.deltaTime = 0; }
     static { this.timeScale = 1.0; }
@@ -2906,7 +3162,8 @@ class Game {
     static { this.viewportCenter = getViewportCenter(); }
     static { this.score = 0; }
     static { this._gameEvents = null; }
-    static { this.curLevel = 1; }
+    static { this.curLevel = 0; }
+    static { this.curWeapon = 1; }
     constructor() {
         Game.canvas = document.getElementById('canvas');
         Game.Input = new InputManager();
@@ -2914,8 +3171,8 @@ class Game {
         timestamp(), pairwise(), ////// ******
         map_map(([previous, current]) => {
             (Game.deltaTime = (current.timestamp - previous.timestamp) * Game.timeScale);
-            if (Game.deltaTime > 10)
-                Game.deltaTime = 10;
+            if (Game.deltaTime > 5)
+                Game.deltaTime = 5;
             return Game.deltaTime;
         }), 
         //da imamo deltaTime izmedju emissija
@@ -2930,14 +3187,14 @@ class Game {
     static reset() {
         Game.reset$.next(1);
         Game.score = 0;
-        _Enemy.enemies.forEach(e => e.Destroy());
-        Game.player.powerups.forEach(e => e.Destroy());
-        Game.player.powerupsWorld.forEach(e => e.Destroy());
-        ts_Bullet.bulletPool.forEach(e => e.Disable());
+        [...Enemy.enemies].forEach(e => e.Destroy());
+        Game.player.powerups = []; // .forEach(e=>e.Destroy());
+        [...Game.powerupsWorld].forEach(e => e.Destroy());
+        Bullet.bulletPool.forEach(e => e.Disable());
+        Game.player.innerHTML = "<span></span>";
         if (Game._gameEvents)
             Game._gameEvents.unsubscribe();
-        Game._gameEvents = makeGameEvents(document).subscribe(e => {
-            console.log(e);
+        Game._gameEvents = makeGameEvents().subscribe(e => {
             Game.events.next(e);
         });
     }
@@ -2978,12 +3235,11 @@ class Game {
     }
     static generateRandomPoint(padding) {
         return {
-            x: (-1300 / 2) + padding + Math.random() * ((1300) - 2 * padding),
-            y: (-900 / 2) + padding + Math.random() * ((900) - 2 * padding)
+            x: (-Game.sceneExtents.x / 2) + padding + Math.random() * ((Game.sceneExtents.x) - 2 * padding),
+            y: (-Game.sceneExtents.y / 2) + padding + Math.random() * ((Game.sceneExtents.y) - 2 * padding)
         };
     }
 }
-
 //# sourceMappingURL=_Game.js.map
 ;// CONCATENATED MODULE: ./node_modules/rxjs/dist/esm5/internal/operators/takeUntil.js
 
@@ -3007,7 +3263,6 @@ class Player extends GameObject {
         this.hp = 100;
         this.speed = 0.6;
         this.powerups = [];
-        this.powerupsWorld = [];
         this.playerLastPosition = { x: 0, y: 0 };
         this.name = 'player';
         this.color = 'green';
@@ -3020,7 +3275,7 @@ class Player extends GameObject {
     }
     setupListeners() {
         this.Tick.pipe(takeUntil(Game.reset$), ////
-        filter(() => this.hp > 0), tap(() => console.log(this.hp)), map_map((deltaTime) => ({
+        filter(() => this.hp > 0), map_map((deltaTime) => ({
             y: Game.Input.getKey('w') ? -this.speed * deltaTime : Game.Input.getKey('s') ? this.speed * deltaTime : 0,
             x: Game.Input.getKey('a') ? -this.speed * deltaTime : Game.Input.getKey('d') ? this.speed * deltaTime : 0,
         })), scan((position, movement) => ({
@@ -3038,19 +3293,24 @@ class Player extends GameObject {
 
 
 class Powerup extends GameObject {
-    constructor() {
+    constructor(powerupName, value = null, desc = "", col = null) {
         super();
-        this.value = "Powerup";
+        this.powName = "Powerup";
+        this.description = "";
+        this.value = null;
         this.name = 'powerup';
-        this.value = "Powerup";
-        this.size = { x: 20, y: 20 };
-        this.color = 'lime';
-        Game.player.powerupsWorld.push(this);
+        this.powName = powerupName;
+        this.customStyle = "word-wrap: anywhere; text-align: center; color:orange; font-weight:600; overflow: hidden; border-radius: 7px;";
+        this.value = value;
+        this.description = desc;
+        this.size = { x: 30, y: 30 };
+        this.color = col || 'lime';
+        Game.powerupsWorld.push(this);
     }
     Destroy() {
-        const index = Game.player.powerupsWorld.indexOf(this);
-        if (index > -1) { // only splice array when item is found
-            Game.player.powerupsWorld.splice(index, 1); // 2nd parameter means remove one item only
+        const index = Game.powerupsWorld.indexOf(this);
+        if (index > -1) {
+            Game.powerupsWorld.splice(index, 1);
         }
         return super.Destroy();
     }
@@ -3175,10 +3435,11 @@ let enextSpawn = 7000;
 let enextS = 3000 + enextSpawn * (0.5 + Math.random() / 2);
 let ptime = 0;
 let pcount = 0;
-let pnextSpawn = 7000;
+let pnextSpawn = 3000;
 let pnextS = 3000 + pnextSpawn * (0.5 + Math.random() / 2);
 new Game();
 window['Game'] = Game;
+window['Enemy'] = Enemy;
 let sceneSize = [1000, 700];
 Game.sceneExtents.x = -sceneSize[0] / 2;
 Game.sceneExtents.y = -sceneSize[1] / 2;
@@ -3190,23 +3451,28 @@ window['scene'] = new GameObject();
 Object.assign(window['scene'], { position: { x: 0, y: 0 }, collider: false, size: { x: Game.sceneExtents.xSize, y: Game.sceneExtents.ySize }, centered: true, color: 'black' });
 randImg();
 let player = Game.player = window['player'] = new Player();
-Game.Input.subKey('e', 1, () => {
-    Game.reset();
+Game.Input.subKey('[', 1, () => {
+    pnextS = 0;
 });
 let mouseCursor = new GameObject();
 mouseCursor.size = { x: 40, y: 40 };
 mouseCursor.collider = false;
 mouseCursor.boundByScene = false;
 mouseCursor.color = 'transparent';
-mouseCursor.customStyle = "border: 3px solid pink; border-radius: 50%; opacity: 0.3; z-index:50;";
+mouseCursor.customStyle = "border: 5px solid hotpink; border-radius: 50%; opacity: 0.4; z-index:50;";
 mouseCursor.Tick.subscribe(() => {
     mouseCursor.position = Game.Input.mouseW;
 });
 Game.sub('fireWeapon', (fireEv) => {
     if (player.hp <= 0)
         return;
+    let dmgMul = 1;
+    player.powerups.forEach(p => {
+        if (p.name == "Damage")
+            dmgMul *= 1.2;
+    });
     let weapon = fireEv.weapon;
-    let b = ts_Bullet.shoot(player.position, VecDir(player.position, Game.Input.mouseW), 0, 0.9);
+    let b = Bullet.shoot(player.position, VecDir(player.position, Game.Input.mouseW), 0, 0.9, weapons[weapon].inaccuracy);
     b.color = weapons[weapon].color;
     b.damage = weapons[weapon].damage;
 });
@@ -3217,102 +3483,126 @@ function switchLevel(i) {
     if (!levels[i])
         return;
     Game.curLevel = i;
+    levels[Game.curLevel].initialWeapon = Game.curWeapon;
     Game.reset();
+    pcount = 0;
     window.uiMgr.T_Text.innerHTML = "Level " + i;
     gradual((i) => {
         window.uiMgr.T_Text.style.opacity = (1.0 - (i * i)).toString();
     }, null, 6000, 30, true);
     levels[i].load();
+    window.uiMgr.maxEnemies = levels[Game.curLevel].enemies.length;
 }
 //Game.sub('levelSwitch',(l)=>console.log(l));
 //Game.sub('restart',(l)=>console.log(l));
 Game.events.subscribe(e => {
-    console.log(">>>>>>>>>", e);
+    //console.log(">>>>>>>>>",e);
     //if(e.type=='weaponSwitch') curWeapon=e.value;
     if (e.type == 'levelSwitch')
         switchLevel(e.value);
     if (e.type == 'restart')
         switchLevel(Game.curLevel);
+    if (e.type == 'dmgPopup') {
+        let { entity, value } = e;
+        if (e.value === null) {
+            entity.innerHTML = "<span></span>";
+        }
+        else {
+            value = -value.toFixed(2);
+            let v = (value < 0 ? '' : '+') + value.toString();
+            let c = (value < 0 ? 'orange' : 'lime');
+            entity.innerHTML = `<span style="
+      position:absolute;  text-shadow: 2px 2px black; 
+      font-size:20px;font-weight:600;color:${c};
+      width:100%;text-align:center;margin-top:-40px;">${v}</span>`;
+        }
+    }
+    //if(e.type=='playerHurt')
 });
-Game.ticks$.subscribe(function () {
-    let cols = Game.CheckCollisions(ts_Bullet.bulletPool, [player, ..._Enemy.enemies]);
+playerCollect$.subscribe((idx) => {
+    console.log("Collected ", idx);
+    let p = powerups[idx];
+    p.fn();
+});
+playerHurt$.subscribe((obj) => {
+    player.hp -= obj.value;
+    if (player.hp <= 0) {
+        window.uiMgr.T_Text.innerHTML = "You are dead.";
+        window.uiMgr.T_Text.style.opacity = "1";
+        player.hp = 0;
+    }
+    if (player.hp > 100) {
+        player.hp = 100;
+    }
+});
+enemyHurt$.subscribe(obj => {
+    obj.enemy.hp -= obj.value;
+    if (obj.enemy.hp <= 0) {
+        obj.enemy.Destroy();
+        Game.score++;
+    }
+});
+Game.ticks$.subscribe(function (deltaTime) {
+    [...Game.player.powerups].forEach((v, i) => {
+        v.value -= (deltaTime / 1000); //*Game.timeScale;
+        if (v.value < 0) {
+            Game.player.powerups.splice(i, 1);
+        }
+    });
+    let cols = Game.CheckCollisions(Bullet.bulletPool, [player, ...Enemy.enemies]);
     for (var i = 0; i < cols.length; i++) {
         if (cols[i][1] == player) {
             if (cols[i][0].type === 1) {
                 cols[i][0].Disable();
-                player.hp -= cols[i][0].damage;
-                if (player.hp <= 0) {
-                    window.uiMgr.T_Text.innerHTML = "You are dead.";
-                    window.uiMgr.T_Text.style.opacity = "1";
-                }
+                //player.hp-=cols[i][0].damage;
+                playerHurt$.next({ value: cols[i][0].damage });
             }
         }
         else {
             if (cols[i][0].type === 0) {
                 cols[i][0].Disable();
-                cols[i][1].hp -= cols[i][0].damage;
-                console.log("enemy hurt");
-                if (cols[i][1].hp <= 0) {
-                    cols[i][1].Destroy();
-                    Game.score++;
-                }
+                enemyHurt$.next({ enemy: cols[i][1], value: cols[i][0].damage });
             }
         }
     }
     //cols = Game.CheckCollisions(player.powerupsWorld,[player]) as any[][];
-    for (var i = 0; i < player.powerupsWorld.length; i++) {
-        if (VecDist(player.position, player.powerupsWorld[i].position) < 50) {
+    for (var i = 0; i < Game.powerupsWorld.length; i++) {
+        if (VecDist(player.position, Game.powerupsWorld[i].position) < 40) {
             //if(cols[i][0]==player||cols[i][1]==player){
             //player.powerups.push("Powerup");
-            player.hp += 30;
+            playerCollect$.next(Game.powerupsWorld[i].idx);
             pcount--;
             //window['appComponent'].rerender();
-            player.powerupsWorld[i].Destroy();
+            Game.powerupsWorld[i].Destroy();
         }
     }
 });
-//Enemy.spawner();
-/*
-
-let esub = Game.ticks$.subscribe(function(deltaTime){
-    etime+=deltaTime;
-    console.log(etime);
-    if(etime>enextS){
-        etime = 0;
-        let e = new Enemy();
-        e.position = Game.generateRandomPoint(100);
-        enextSpawn*=0.99;
-        enextS = 3000 + enextSpawn * (0.5+Math.random()/2);
-        console.log("SPAWN P");
-    }
-
-});
-*/
-/*
-let psub = interval(10000).pipe(
-    startWith(0),
-    scan((acc) => acc * 0.99, 10),
-    map((nextSpawn) => {
-      console.log('Spawned');
-      return nextSpawn;
-    })
-  ).subscribe();
-  */
 let psub = Game.ticks$.subscribe(function (deltaTime) {
     //return;
-    if (pcount > 2)
+    if (Game.curLevel != 4) {
+        if (pcount > 2)
+            return;
+    }
+    else if (pcount > 4)
         return;
     ptime += deltaTime;
     if (ptime > pnextS) {
         ptime = 0;
         pcount++;
-        let e = new Powerup();
+        let idx = Math.floor(Math.random() * powerups.length);
+        let e = Object.assign(new Powerup(powerups[idx].powName), powerups[idx]);
+        e.idx = idx;
+        e.innerHTML = e.symbol;
         e.position = Game.generateRandomPoint(100);
-        pnextSpawn *= 0.99;
-        pnextS = 3000 + pnextSpawn * (0.5 + Math.random() / 2);
+        //pnextSpawn*=0.99;
+        if (Game.curLevel != 4)
+            pnextS = 3000 + pnextSpawn * (0.5 + Math.random() / 2);
+        else {
+            pnextS = 3000;
+        }
     }
 });
-switchLevel(1);
+switchLevel(0);
 //# sourceMappingURL=Main.js.map
 /******/ })()
 ;

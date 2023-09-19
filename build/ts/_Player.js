@@ -1,4 +1,4 @@
-import { filter, map, tap, scan, takeUntil } from 'rxjs/operators';
+import { filter, map, scan, takeUntil } from 'rxjs/operators';
 import { Game } from './_Game';
 import GameObject from './GameObject';
 export default class Player extends GameObject {
@@ -7,7 +7,6 @@ export default class Player extends GameObject {
         this.hp = 100;
         this.speed = 0.6;
         this.powerups = [];
-        this.powerupsWorld = [];
         this.playerLastPosition = { x: 0, y: 0 };
         this.name = 'player';
         this.color = 'green';
@@ -20,7 +19,7 @@ export default class Player extends GameObject {
     }
     setupListeners() {
         this.Tick.pipe(takeUntil(Game.reset$), ////
-        filter(() => this.hp > 0), tap(() => console.log(this.hp)), map((deltaTime) => ({
+        filter(() => this.hp > 0), map((deltaTime) => ({
             y: Game.Input.getKey('w') ? -this.speed * deltaTime : Game.Input.getKey('s') ? this.speed * deltaTime : 0,
             x: Game.Input.getKey('a') ? -this.speed * deltaTime : Game.Input.getKey('d') ? this.speed * deltaTime : 0,
         })), scan((position, movement) => ({

@@ -21,7 +21,7 @@ export default class GameObject{
     Render: Subject<number>;
     CollidedSceneEdge: Subject<void>;
     _tickSub: Subscription;
-
+    innerHTML:any = null;
     customStyle : string|null;
 
     constructor(parent: GameObject | null = null, htmlParent?: HTMLElement){
@@ -40,6 +40,7 @@ export default class GameObject{
         this.htmlParent = htmlParent ?? Game.canvas;
         this.htmlParent.append(this.el);
         this.customStyle = null;
+        this.innerHTML = null;
 
         this.Tick = new Subject<number>();
         this.PreRender = new Subject<number>();
@@ -126,5 +127,8 @@ export default class GameObject{
         z-index:-1;
         ${this.customStyle?this.customStyle:""}
         `.split('\n').join('');
+        if(this.innerHTML){
+            this.el.innerHTML = this.innerHTML;
+        }
     }
 }

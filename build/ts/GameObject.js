@@ -4,6 +4,7 @@ import { Game } from './_Game';
 import { Vector } from './Vector';
 export default class GameObject {
     constructor(parent = null, htmlParent) {
+        this.innerHTML = null;
         this.enabled = true;
         this.name = "";
         this.collider = true;
@@ -18,6 +19,7 @@ export default class GameObject {
         this.htmlParent = htmlParent ?? Game.canvas;
         this.htmlParent.append(this.el);
         this.customStyle = null;
+        this.innerHTML = null;
         this.Tick = new Subject();
         this.PreRender = new Subject();
         this.Render = new Subject();
@@ -99,6 +101,9 @@ export default class GameObject {
         z-index:-1;
         ${this.customStyle ? this.customStyle : ""}
         `.split('\n').join('');
+        if (this.innerHTML) {
+            this.el.innerHTML = this.innerHTML;
+        }
     }
 }
 //# sourceMappingURL=GameObject.js.map

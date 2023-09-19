@@ -13,7 +13,7 @@ export function getViewportCenter() {
     size.y /= 2;
     return size;
 }
-class Game {
+export class Game {
     static { this.reset$ = new Subject(); }
     static { this.player = null; }
     static { this.canvas = null; }
@@ -23,6 +23,7 @@ class Game {
     static { this.cameraPos = { x: 0, y: 0 }; }
     static { this.sceneExtents = { y: -250, x: -250, xSize: 500, ySize: 500 }; }
     static { this.gameObjects = []; }
+    static { this.powerupsWorld = []; }
     static { this.paused = false; }
     static { this.deltaTime = 0; }
     static { this.timeScale = 1.0; }
@@ -30,7 +31,8 @@ class Game {
     static { this.viewportCenter = getViewportCenter(); }
     static { this.score = 0; }
     static { this._gameEvents = null; }
-    static { this.curLevel = 1; }
+    static { this.curLevel = 0; }
+    static { this.curWeapon = 1; }
     constructor() {
         Game.canvas = document.getElementById('canvas');
         Game.Input = new InputManager();
@@ -38,8 +40,8 @@ class Game {
         timestamp(), pairwise(), ////// ******
         map(([previous, current]) => {
             (Game.deltaTime = (current.timestamp - previous.timestamp) * Game.timeScale);
-            if (Game.deltaTime > 10)
-                Game.deltaTime = 10;
+            if (Game.deltaTime > 5)
+                Game.deltaTime = 5;
             return Game.deltaTime;
         }), 
         //da imamo deltaTime izmedju emissija
@@ -54,14 +56,14 @@ class Game {
     static reset() {
         Game.reset$.next(1);
         Game.score = 0;
-        Enemy.enemies.forEach(e => e.Destroy());
-        Game.player.powerups.forEach(e => e.Destroy());
-        Game.player.powerupsWorld.forEach(e => e.Destroy());
+        [...Enemy.enemies].forEach(e => e.Destroy());
+        Game.player.powerups = []; // .forEach(e=>e.Destroy());
+        [...Game.powerupsWorld].forEach(e => e.Destroy());
         Bullet.bulletPool.forEach(e => e.Disable());
+        Game.player.innerHTML = "<span></span>";
         if (Game._gameEvents)
             Game._gameEvents.unsubscribe();
-        Game._gameEvents = makeGameEvents(document).subscribe(e => {
-            console.log(e);
+        Game._gameEvents = makeGameEvents().subscribe(e => {
             Game.events.next(e);
         });
     }
@@ -102,10 +104,9 @@ class Game {
     }
     static generateRandomPoint(padding) {
         return {
-            x: (-1300 / 2) + padding + Math.random() * ((1300) - 2 * padding),
-            y: (-900 / 2) + padding + Math.random() * ((900) - 2 * padding)
+            x: (-Game.sceneExtents.x / 2) + padding + Math.random() * ((Game.sceneExtents.x) - 2 * padding),
+            y: (-Game.sceneExtents.y / 2) + padding + Math.random() * ((Game.sceneExtents.y) - 2 * padding)
         };
     }
 }
-export { Game };
 //# sourceMappingURL=_Game.js.map

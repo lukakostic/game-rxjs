@@ -1,5 +1,6 @@
-import { Game } from "./_Game";
-import { levels } from "./Levels";
+//import {Game} from "./_Game";
+//import { levels } from "./Levels";
+//declare let window : {uiMgr:any};
 let hb = document.getElementById('healthbar');
 let sc = document.getElementById('game-score');
 let pw = document.getElementById('powerups');
@@ -19,7 +20,7 @@ setInterval(() => {
         let rest = 100 - hp;
         return `linear-gradient(125deg, green ${hp}%, transparent ${hp}%)`;
     }
-    hb.style = `background: ${getGradient()}`;
+    (hb).style = `background: ${getGradient()}`;
     let pwHash2 = "";
     Game.player.powerups.forEach(p => {
         pwHash2 += p.name + p.value;

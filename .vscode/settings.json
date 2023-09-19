@@ -2,7 +2,7 @@
     "emeraldwalk.runonsave": {
         "commands": [
             {
-                "cmd": "./rxjs/build.sh"
+                "cmd": "zzz./rxjs/build.sh"
             }
         ]
     }

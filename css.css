@@ -1,4 +1,6 @@
- 
+* {
+  cursor: crosshair;
+} 
 #canvas {
   position: absolute;
   z-index:-1;
@@ -9,17 +11,20 @@
 #healthbar {
   height: 100%; 
   background: linear-gradient(125deg, green 90%, transparent 10%);
-  margin-top: -20px;
+  margin-top: -30px;
   color: white;
   font-weight: 600;
+  font-size: 20px;
+  padding-left: 10px;
+  padding-top: 3px;
 }
 #healthbarRed {
   
-  height: 20px;
+  height: 30px;
   background: linear-gradient(125deg, red 90%, transparent 10%);
 }
 #healthbarBack {
-  height: 20px; 
+  height: 30px; 
   width: 300px;
   margin-left: 15px;
   background: linear-gradient(125deg, black 90%, transparent 10%);
@@ -39,7 +44,7 @@
     opacity: 0.7;
     z-index: 10;
     position: fixed;
-    top: 100px;
+    top: 200px;
     left: 0px;
 
   }
@@ -48,7 +53,8 @@
     align-items: center; justify-content: center; text-align: center;
     height: 30px;
     width: 100vw;
-    color: orange;
+    color: orange; 
+    text-shadow: 2px 2px black;
     font-size: 60px;
 }
 
@@ -63,5 +69,6 @@
     padding: 7px;
     word-break: break-all;
     background-color: white;
+    font-weight: 600;
   }
   

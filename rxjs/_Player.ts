@@ -3,16 +3,14 @@ import { filter, map, withLatestFrom,tap,  timestamp, take, throttleTime, concat
 import { Game } from './_Game';
 import GameObject from './GameObject';
 import { Vector, VecDir, VecSub, VecAdd, VecMul, VecNormalize, VecDist } from './Vector';
-
+import {Powerup} from './Powerup'
 
 
 export default class Player extends GameObject {
     hp:number=100;
     speed:number = 0.6;
     powerups:any[] = [];
-    powerupsWorld:any[] = [];
     playerLastPosition:Vector={x:0,y:0};
-
 
     constructor(){
         super();
@@ -31,7 +29,6 @@ export default class Player extends GameObject {
         this.Tick.pipe(
             takeUntil(Game.reset$), ////
             filter(()=>this.hp>0),
-            tap(()=>console.log(this.hp)),
             map((deltaTime:number) => ({
                 y: Game.Input.getKey('w') ? -this.speed*deltaTime : Game.Input.getKey('s') ? this.speed*deltaTime : 0,
                 x: Game.Input.getKey('a') ? -this.speed*deltaTime : Game.Input.getKey('d') ? this.speed*deltaTime : 0,

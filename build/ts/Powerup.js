@@ -1,19 +1,24 @@
 import { Game } from './_Game';
 import GameObject from './GameObject';
-export default class Powerup extends GameObject {
-    constructor() {
+export class Powerup extends GameObject {
+    constructor(powerupName, value = null, desc = "", col = null) {
         super();
-        this.value = "Powerup";
+        this.powName = "Powerup";
+        this.description = "";
+        this.value = null;
         this.name = 'powerup';
-        this.value = "Powerup";
-        this.size = { x: 20, y: 20 };
-        this.color = 'lime';
-        Game.player.powerupsWorld.push(this);
+        this.powName = powerupName;
+        this.customStyle = "word-wrap: anywhere; text-align: center; color:orange; font-weight:600; overflow: hidden; border-radius: 7px;";
+        this.value = value;
+        this.description = desc;
+        this.size = { x: 30, y: 30 };
+        this.color = col || 'lime';
+        Game.powerupsWorld.push(this);
     }
     Destroy() {
-        const index = Game.player.powerupsWorld.indexOf(this);
-        if (index > -1) { // only splice array when item is found
-            Game.player.powerupsWorld.splice(index, 1); // 2nd parameter means remove one item only
+        const index = Game.powerupsWorld.indexOf(this);
+        if (index > -1) {
+            Game.powerupsWorld.splice(index, 1);
         }
         return super.Destroy();
     }

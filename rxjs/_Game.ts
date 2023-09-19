@@ -6,6 +6,7 @@ import Player from './_Player';
 import Enemy from './_Enemy';
 import Bullet from './Bullet';
 import { makeGameEvents, sub } from './__GameLogic';
+import { Powerup } from './Powerup';
 
 interface GameObject {
   enabled: boolean;
@@ -38,6 +39,7 @@ export class Game {
     static cameraPos = {x:0,y:0};
     static sceneExtents = {y:-250,x:-250,xSize:500,ySize:500};
     static gameObjects: GameObject[] = [];
+    static powerupsWorld: Powerup[] = [];
     static paused = false;
     static deltaTime = 0;
     static timeScale = 1.0;
@@ -46,7 +48,8 @@ export class Game {
     static score = 0;
     static events;
     static _gameEvents = null;
-    static curLevel = 1;
+    static curLevel = 0;
+    static curWeapon = 1;
 
     constructor(){
         Game.canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -58,7 +61,7 @@ export class Game {
           timestamp(),pairwise(),  ////// ******
             map(([previous, current]) => {
               (Game.deltaTime = (current.timestamp - previous.timestamp)*Game.timeScale)
-              if(Game.deltaTime>10) Game.deltaTime = 10;
+              if(Game.deltaTime>5) Game.deltaTime = 5;
               return Game.deltaTime;
             }),
             //da imamo deltaTime izmedju emissija
@@ -80,17 +83,18 @@ export class Game {
       Game.reset$.next(1);
       Game.score = 0;
 
-      Enemy.enemies.forEach(e=>e.Destroy());
-      Game.player.powerups.forEach(e=>e.Destroy());
-      Game.player.powerupsWorld.forEach(e=>e.Destroy());
+      [...Enemy.enemies].forEach(e=>e.Destroy());
+      Game.player.powerups = [];// .forEach(e=>e.Destroy());
+      [...Game.powerupsWorld].forEach(e=>e.Destroy());
       Bullet.bulletPool.forEach(e=>e.Disable());
+      Game.player.innerHTML = "<span></span>";
 
       if(Game._gameEvents) Game._gameEvents.unsubscribe();
-      Game._gameEvents = makeGameEvents(document).subscribe(e=>{
-        console.log(e);
+      Game._gameEvents = makeGameEvents().subscribe(e=>{
         Game.events.next(e);
       });
     }
+    
     static sub(type,fn){
       console.log("Game sub");
       return sub(Game.events,type,fn);
@@ -129,8 +133,8 @@ export class Game {
       
     static generateRandomPoint(padding: number): Vector {
       return {
-        x: (-1300/2) + padding + Math.random() * ((1300) - 2 * padding),
-        y: (-900/2) + padding + Math.random() * ((900) - 2 * padding)
+        x: (-Game.sceneExtents.x/2) + padding + Math.random() * ((Game.sceneExtents.x) - 2 * padding),
+        y: (-Game.sceneExtents.y/2) + padding + Math.random() * ((Game.sceneExtents.y) - 2 * padding)
       };
     }
 }

@@ -1,9 +1,9 @@
-import { take, throttleTime } from 'rxjs/operators';
+import { delay, take, throttleTime } from 'rxjs/operators';
 import { Game } from './_Game';
 import GameObject from './GameObject';
 import { VecDir, VecDist } from './Vector';
 import Bullet from './Bullet';
-class Enemy extends GameObject {
+export default class Enemy extends GameObject {
     static { this.enemies = []; }
     static predictFuturePosition(dist) {
         let velocity = {
@@ -22,55 +22,81 @@ class Enemy extends GameObject {
         };
         return futurePosition;
     }
-    constructor() {
+    constructor(boss = false) {
         super();
         this.hp = 100;
+        this.boss = false;
         this.name = 'enemy';
         this.hp = 100;
-        this.Tick.pipe(throttleTime(1000) ////// ******
+        //this.customStyle = "border: 2px solid red";
+        this.boss = boss;
+        this.Tick.pipe(throttleTime(this.boss ? (600 + Math.random() * 400) : 1000) ////// ******
         ).subscribe(() => {
             let dist = VecDist(this.position, Game.player.position) * 0.03;
             let playerPos = Enemy.predictFuturePosition(dist);
-            //console.log(playerPos,player.position,dist);
-            let b = Bullet.shoot(this.position, VecDir(this.position, playerPos), 1);
-            //b.speed = 1.1;
-            b.speed = 0.6;
-            b.color = 'red';
-            b.homingRate = 0.05;
-            b.damage = 15;
-            b.homing = b.Tick.pipe(throttleTime(300), take(2) ////// ******
-            ).subscribe(() => {
-                let dist = VecDist(b.position, Game.player.position) * b.homingRate;
-                let playerPos = Enemy.predictFuturePosition(dist);
-                b.vecDir = VecDir(b.position, playerPos);
-            });
-            /*
-                b.homingRate = 0.25;
-                b.homing = b.Tick.pipe(throttleTime(300) ).subscribe(()=>{
-                    let dist = VecDist(b.position,player.position) * b.homingRate;
-                    let playerPos = predictFuturePosition(dist);
+            if (!this.boss) {
+                let b = Bullet.shoot(this.position, VecDir(this.position, playerPos), 1);
+                //b.speed = 1.1;
+                b.speed = 0.6;
+                b.color = 'red';
+                b.damage = 15;
+                b.homingRate = 0.06;
+                b.homing = b.Tick.pipe(throttleTime(300), take(3) ////// ******
+                ).subscribe(() => {
+                    let dist = VecDist(b.position, Game.player.position) * b.homingRate;
+                    let playerPos = Enemy.predictFuturePosition(dist);
                     b.vecDir = VecDir(b.position, playerPos);
-                        //console.log(b.position,player.position,b.vecDir)
-                    b.speed *= 1.1;
-                    b.homingRate *= 0.8;
-                            
-                    /*
-                    let vecDirToPlayer = VecDir(b.position, playerPos);
-                    let weightedCurrentDirection = VecMul(b.vecDir, 1 - b.homingRate);
-                    let weightedDirectionToPlayer = VecMul(vecDirToPlayer, b.homingRate);
-                    b.vecDir = VecNormalize(VecAdd(weightedCurrentDirection, weightedDirectionToPlayer));
-                    */
-            //});
+                });
+            }
+            else {
+                let dir = VecDir(this.position, playerPos);
+                let b1 = Bullet.shoot(this.position, dir, 1, 0.9, 0.8);
+                let b2 = Bullet.shoot(this.position, dir, 1, 0.9, 0.8);
+                let applyB = function (b, offset) {
+                    //b.speed = 1.1;
+                    b.speed = 0.7;
+                    b.color = 'hotpink';
+                    b.damage = 10;
+                    b.lifetimeClock = 0;
+                    b.homingRate = 0.06;
+                    b.homing = b.Tick.pipe(delay(400), throttleTime(300), take(3) ////// ******
+                    ).subscribe((dt) => {
+                        let dist = VecDist(b.position, Game.player.position) * b.homingRate;
+                        let playerPos = Enemy.predictFuturePosition(dist);
+                        b.vecDir = VecDir(b.position, playerPos);
+                    });
+                    // b.tickFn = (dt,c,bl)=>{
+                    //     //return c;
+                    //     let angle = Math.PI/2;
+                    //     //console.log(dir);
+                    //     let vec = {
+                    //         x: dir.x * Math.cos(angle) - dir.y * Math.sin(angle),
+                    //         y: dir.x * Math.sin(angle) + dir.y * Math.cos(angle)
+                    //     };
+                    //     //console.log(vec);
+                    //     //let dirP = {x:dir.y,y:dir.x};
+                    //     //console.log(dt);
+                    //     if(isNaN(bl.lifetimeClock)) bl.lifetimeClock = 0;
+                    //     //console.log(bl.lifetimeClock,dt,Game.timeScale);
+                    //     bl.lifetimeClock += (dt/2000) * Game.timeScale;
+                    //     let s = (offset*Math.sin(bl.lifetimeClock))*5;
+                    //     //console.log(bl.lifetimeClock,s);
+                    //     let v = VecMul(vec,s);
+                    //     return VecAdd(c,v);
+                    // };
+                };
+                applyB(b1, -1);
+                applyB(b2, 1);
+            }
         });
         Enemy.enemies.push(this);
     }
     Destroy() {
         const index = Enemy.enemies.indexOf(this);
-        if (index > -1) { // only splice array when item is found
-            Enemy.enemies.splice(index, 1); // 2nd parameter means remove one item only
+        if (index > -1) {
+            Enemy.enemies.splice(index, 1);
         }
         return super.Destroy();
     }
 }
-export default Enemy;
 //# sourceMappingURL=_Enemy.js.map
